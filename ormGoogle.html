@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title></title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/picnic@latest">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  
+  <style>
+    body { 
+      font-family: sans-serif; 
+      padding: 20px; 
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    tr:hover { background-color: #ccc; }
+    th, td { border: 1px solid #ccc; padding: 8px; }
+    th { background: #f0f0f0; }
+    input { margin: 4px 0; padding: 4px; }
+    button { margin: 2px; padding: 6px 10px; }
+    h3 { margin: 4px; }
+    .tabs { display: flex; margin-bottom: 10px; }
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-bottom: none;
+      background: #eee;
+    }
+    .tab.active {
+      background: #fff;
+      font-weight: bold;
+    }
+
+    .tab.active:hover {
+      background-color: #fff;
+    }
+
+    .tab:hover {
+      background-color: #ccc;
+    }
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      z-index: 9999;
+    }
+
+    .forms {
+      border: 1px solid #ccc;
+      padding: 16px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      background: #fafafa;
+      max-width: 400px;
+    }
+
+    .forms h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+
+    .forms .form-row {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 10px;
+    }
+
+    .forms label {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .forms input {
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .bar {
+      display: flex;
+      flex-direction: row;
+    }
+
+    .options {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 50%;
+      height: 50%;
+      background: rgba(255, 255, 255, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      z-index: 1;
+    }
+
+    .flex-r {
+      display: flex;
+      flex-direction: row;
+    }
+
+    .flex-c {
+      display: flex;
+      flex-direction: column;
+    }
+
+    dialog {
+      border: none;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      max-width: 400px;
+      width: 90%;
+      font-family: sans-serif;
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    .dialog-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .dialog-form h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 1.2rem;
+    }
+
+    .dialog-form label {
+      font-size: 0.9rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .dialog-form input {
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .dialog-form menu {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .dialog-form button {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .dialog-form button[value="cancel"] {
+      background: #eee;
+    }
+
+    .dialog-form button[value="cancel"]:hover {
+      background: #ddd;
+    }
+
+    .dialog-form button[value="ok"] {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .dialog-form button[value="ok"]:hover {
+      background: #c0392b;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const url = "https://script.google.com/macros/s/AKfycbx-Zo-UyrVHExnLrhJjUaWpLelh7f8HoZmpwb7D9fUye72pEoe-zyhWKrN91cW0WlOj/exec";
+    const key = "MY_SECRET_KEY";
+
+    const cache = (sheetName, newData = null) => {
+      const cacheKey = `sheet-${sheetName}`;
+      const ttl = 5 * 60 * 1000; // 5 minutes
+
+      if (newData) {
+        // Save to cache
+        localStorage.setItem(cacheKey, JSON.stringify({
+          data: newData,
+          timestamp: Date.now()
+        }));
+        return newData;
+      }
+
+      // Otherwise, try to read from cache
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < ttl) {
+            return data; // ✅ valid cached data
+          }
+        } catch (e) {
+          console.error("Cache parse error", e);
+          localStorage.removeItem(cacheKey); // clear corrupted cache
+        }
+      }
+
+      return null; // nothing valid
+    };
+
+    async function pull(sheetName) {
+      const res = await axios.get(url, { params: { token: key, sheetName } });
+      return res.data;
+    }
+    
+    async function push(sheetName, row) {
+      return (await axios.post(url, new URLSearchParams({ key, sheetName, action: "add", ...row }))).data;
+    }
+    
+    async function update(sheetName, rowIndex, row) {
+      return (await axios.post(url, new URLSearchParams({ key, sheetName, action: "edit", rowIndex, ...row }))).data;
+    }
+    
+    async function remove(sheetName, rowIndex) {
+      return (await axios.post(url, new URLSearchParams({ key, sheetName, action: "delete", rowIndex }))).data;
+    }
+
+    function App() {
+      const [sheetName, setSheetName] = React.useState("Sheet1");
+      const [headers, setHeaders] = React.useState([]);
+      const [rows, setRows] = React.useState([]);
+      const [form, setForm] = React.useState({});
+      const [loading, setLoading] = React.useState(false);
+      const [loadingText, setLoadingText] = React.useState("Loading...");
+      const [sheets, setSheets] = React.useState([]);
+      const [searchTerm, setSearchTerm] = React.useState("");
+      const [options, setOptions] = React.useState(false);
+      const [page, setPage] = React.useState("login");
+      const [loggedInUser, setLoggedInUser] = React.useState(null);
+
+      const userData = [
+        { username: "steven", password: "123" },
+        { username: "admin", password: "123" }
+      ];
+
+      const Login = ({ onLogin }) => {
+        const [user, setUser] = React.useState("");
+        const [pass, setPass] = React.useState("");
+        const [error, setError] = React.useState("");
+
+        const handleSubmit = (e) => {
+          e.preventDefault();
+
+          if (!user || !pass) {
+            setError("Please enter both username and password.");
+            return;
+          }
+
+          const foundUser = userData.find(
+            (u) => u.username === user && u.password === pass
+          );
+
+          if (foundUser) {
+            setError("");
+            onLogin(foundUser);
+          } else {
+            setError("Invalid username or password.");
+          }
+        };
+
+        return (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100vh",
+              background: "linear-gradient(135deg, #74ABE2, #5563DE)",
+            }}
+          >
+            <div
+              style={{
+                background: "#fff",
+                padding: "40px 50px",
+                borderRadius: "16px",
+                boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+                width: "100%",
+                maxWidth: "380px",
+              }}
+            >
+              <h2
+                style={{
+                  textAlign: "center",
+                  marginBottom: "25px",
+                  color: "#333",
+                  fontSize: "1.8rem",
+                  fontWeight: "600",
+                }}
+              >
+                Login
+              </h2>
+
+              <form onSubmit={handleSubmit}>
+                <div style={{ marginBottom: "15px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "6px",
+                      fontWeight: "bold",
+                      color: "#333",
+                    }}
+                  >
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={user}
+                    onChange={(e) => setUser(e.target.value)}
+                    placeholder="Enter your username"
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      border: "1px solid #ccc",
+                      borderRadius: "8px",
+                      fontSize: "1rem",
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: "20px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "6px",
+                      fontWeight: "bold",
+                      color: "#333",
+                    }}
+                  >
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={pass}
+                    onChange={(e) => setPass(e.target.value)}
+                    placeholder="Enter your password"
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      border: "1px solid #ccc",
+                      borderRadius: "8px",
+                      fontSize: "1rem",
+                    }}
+                  />
+                </div>
+
+                {error && (
+                  <div
+                    style={{
+                      color: "red",
+                      fontSize: "0.9rem",
+                      marginBottom: "10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  style={{
+                    width: "100%",
+                    background: "#5563DE",
+                    color: "#fff",
+                    border: "none",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    fontSize: "1rem",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "background 0.3s",
+                  }}
+                  onMouseOver={(e) => (e.target.style.background = "#3f4ec9")}
+                  onMouseOut={(e) => (e.target.style.background = "#5563DE")}
+                >
+                  Log In
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      };
+      
+      const filteredRows = rows.filter(row =>
+        row.some(cell => 
+          String(cell).toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
+
+      const refresh = async () => {
+        setLoading(true);
+        setLoadingText("Loading Data...")
+        const result = await pull(sheetName);
+        
+        setSheets(result.sheets || []);
+        if (result.data && Array.isArray(result.data)) {
+          setHeaders(result.data[0] || []);
+          setRows(result.data.slice(1) || []);
+        } else {
+          setHeaders([]);
+          setRows([]);
+        }
+        setLoadingText("Setting Form...")
+        setForm({});
+        setLoading(false);
+        setLoadingText("Loading...")
+      };
+
+      const toggleUI = () => setOptions(prev => !prev);
+
+      React.useEffect(() => {
+        refresh();
+      }, [sheetName]);
+
+      const _loading = () => (
+        <>
+          {loading && (
+            <div className="loading-overlay">
+              { loadingText }
+            </div>
+          )}
+        </>
+      );
+      
+      const _Modal = () => (
+        <>
+        </>
+      );
+
+      const _Table = () => {
+        const [currentPage, setCurrentPage] = React.useState(1);
+        const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+        const totalRows = filteredRows.length;
+        const totalPages = Math.ceil(totalRows / rowsPerPage);
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const currentRows = filteredRows.slice(startIndex, startIndex + rowsPerPage);
+
+        const goToPage = (pageNum) => {
+          if (pageNum >= 1 && pageNum <= totalPages) setCurrentPage(pageNum);
+        };
+
+        return (
+          <div>
+            {/* --- Search + Pagination Bar --- */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "10px"
+            }}>
+              <div>
+                <label>Search: </label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search table..."
+                />
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
+                  ← Prev
+                </button>
+                <span>Page {currentPage} of {totalPages}</span>
+                <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>
+                  Next →
+                </button>
+
+                <label style={{ marginLeft: "20px" }}>
+                  Rows per page:
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => {
+                      setRowsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{ marginLeft: "8px" }}
+                  >
+                    {[5, 10, 20, 50].map(num => (
+                      <option key={num} value={num}>{num}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {/* --- Table --- */}
+            <table>
+              <thead>
+                <tr>
+                  {headers.map((h) => <th key={h}>{h}</th>)}
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentRows.map((row, i) => {
+                  const rowIndex = startIndex + i + 2;
+                  return (
+                    <tr key={i}>
+                      {row.map((cell, j) => (
+                        <td key={j} style={{ width: "120px" }}>{cell}</td>
+                      ))}
+                      <td style={{ width: "100px" }}>
+                        <button className="fas fa-note-sticky" onClick={() => handler("edit", rowIndex, row)}></button>
+                        <button className="fas fa-trash" onClick={() => handler("delete", rowIndex, row)}></button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      };
+
+      const Headers = [
+        { label: "Home", onClick: () => setPage("home") },
+        { label: "Reports", onClick: () => setPage("reports") },
+        { label: "Settings", onClick: () => setPage("settings") }
+      ];
+
+      const _Header = ({ PageName = "", Headers = [] }) => (
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 20px",
+            background: "#2b2d42",
+            color: "#fff",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+          }}
+        >
+          <div>
+            Company Name Here
+          </div>
+          <div style={{ fontSize: "1.3rem", fontWeight: "600" }}>
+            {PageName}
+          </div>
+
+          <div style={{ display: "flex", gap: "16px" }}>
+            {Headers.map((h, idx) => (
+              <button onClick={h.onClick} key={idx}>
+                {h.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {loggedInUser ? (
+              <>
+                <span>{loggedInUser.username}</span>
+                <button
+                  onClick={() => {
+                    setLoggedInUser(null); 
+                    setPage("login");      
+                  }}
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setPage("login")}>Login</button>
+            )}
+          </div>
+        </header>
+      );
+
+      const _Footer = () => (
+        <footer
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            padding: "20px",
+            background: "#2b2d42",
+            color: "#fff",
+            fontSize: "0.9rem",
+            marginTop: "40px", 
+            borderTop: "1px solid #8d99ae",
+          }}
+        >
+          <div>© {new Date().getFullYear()} My Dashboard</div>
+          <div>All systems operational</div>
+          <div>
+            <a
+              href="#"
+              style={{
+                color: "#8d99ae",
+                textDecoration: "none",
+                marginRight: "12px",
+              }}
+            >
+              Privacy
+            </a>
+            <a
+              href="#"
+              style={{ color: "#8d99ae", textDecoration: "none" }}
+            >
+              Terms
+            </a>
+          </div>
+        </footer>
+      );
+
+      const _Tabs = () => (
+        <div className="tabs">
+          {sheets.map(s => (
+            <div
+              key={s}
+              className={`tab ${sheetName === s ? "active" : ""}`}
+              onClick={() => setSheetName(s)}
+            >
+              {s}
+            </div>
+          ))}
+          <div className="tab">+</div>
+        </div>
+      )
+
+      const handleChange = (key, value) => {
+        setForm({ ...form, [key]: value });
+      };
+
+      const handler = async (action, rowIndex=null, row=null) => {
+        const dialog = document.createElement("dialog");
+
+        // Build form fields dynamically
+        let title = "";
+        let formFields = "";
+
+        switch (action) {
+          case "add":
+            title = "Add New Row";
+            headers.forEach((h) => {
+              formFields += `
+                <label style="display:block; margin-bottom:8px;">
+                  ${h}: 
+                  <input type="text" name="${h}" value="" />
+                </label>
+              `;
+            });
+            break;
+
+          case "edit":
+            title = `Edit Row ${rowIndex}`;
+            const values = rows[rowIndex - 2] || [];
+            headers.forEach((h, i) => {
+              formFields += `
+                <label style="display:block; margin-bottom:8px;">
+                  ${h}: 
+                  <input type="text" name="${h}" value="${values[i] ?? ""}" />
+                </label>
+              `;
+            });
+            break;
+
+          case "delete":
+            title = `Delete Row ${rowIndex}?`;
+            formFields = `<p>Are you sure you want to delete this row?</p>`;
+            break;
+
+          default:
+            console.error("Unknown action:", action);
+            return;
+        }
+
+        dialog.innerHTML = `
+          <form method="dialog" class="dialog-form" style="padding:20px; min-width:300px;">
+            <h3>${title}</h3>
+            <div>${formFields}</div>
+            <menu style="margin-top:12px; display:flex; justify-content:space-between;">
+              <button value="cancel">Cancel</button>
+              <button value="ok">${action === "delete" ? "Delete" : "Save"}</button>
+            </menu>
+          </form>
+        `;
+
+        document.body.appendChild(dialog);
+        dialog.showModal();
+
+        dialog.addEventListener("close", async () => {
+          const choice = dialog.returnValue;
+          dialog.remove();
+
+          if (choice !== "ok") return;
+
+          setLoading(true);
+
+          if (action === "add" || action === "edit") {
+            const inputs = dialog.querySelectorAll("input");
+            const updated = {};
+            inputs.forEach((input) => (updated[input.name] = input.value));
+
+            if (action === "add") {
+              setLoadingText("Adding new row...");
+              await push(sheetName, updated);
+            } else {
+              setLoadingText(`Updating row ${rowIndex}...`);
+              await update(sheetName, rowIndex, updated);
+            }
+          }
+
+          if (action === "delete") {
+            setLoadingText(`Deleting row ${rowIndex}...`);
+            await remove(sheetName, rowIndex);
+          }
+
+          setLoading(false);
+          refresh?.();
+        });
+      }
+
+      const _Login = () => (
+        <>
+          <Login onLogin={(user) => {
+            setLoggedInUser(user);  
+            setPage("home");        
+          }} />
+        </>
+      )
+
+      const _Page = ({ pageName, Header, children }) => (
+        <>
+          <_Header PageName={pageName} Headers={Header} />
+          <_loading />
+            <main>
+              {children}
+            </main>
+          <_Footer />          
+        </>
+      );
+
+      const _Home = () => (
+        <>
+          <_Page PageName="Home" Header={Headers} >
+
+          <main
+            style={{
+              minHeight: "calc(100vh - 160px)",
+              background: "linear-gradient(135deg, #f8f9fa, #e9ecef)",
+              padding: "40px 20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+            }}
+          >
+            {/* Hero Section */}
+            <section style={{ maxWidth: "800px", marginBottom: "60px" }}>
+              <h1
+                style={{
+                  fontSize: "2.5rem",
+                  marginBottom: "16px",
+                  color: "#2b2d42",
+                }}
+              >
+                Welcome to Your Dashboard
+              </h1>
+              <p
+                style={{
+                  fontSize: "1.1rem",
+                  color: "#555",
+                  lineHeight: "1.6",
+                  marginBottom: "30px",
+                }}
+              >
+                Manage your data, view reports, and customize your settings — all in one simple, powerful interface.
+              </p>
+              <button
+                onClick={() => setPage("reports")}
+                style={{
+                  background: "#5563DE",
+                  color: "#fff",
+                  padding: "12px 24px",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "1rem",
+                  transition: "background 0.3s",
+                }}
+                onMouseOver={(e) => (e.target.style.background = "#3f4ec9")}
+                onMouseOut={(e) => (e.target.style.background = "#5563DE")}
+              >
+                Go to Reports
+              </button>
+            </section>
+
+            {/* Feature Cards */}
+            <section
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                gap: "20px",
+                maxWidth: "900px",
+                width: "100%",
+              }}
+            >
+              {[
+                {
+                  icon: "fa-chart-line",
+                  title: "Reports",
+                  text: "Generate, filter, and view detailed analytics in real time.",
+                  onClick: () => setPage("reports"),
+                },
+                {
+                  icon: "fa-cog",
+                  title: "Settings",
+                  text: "Customize user preferences, sheets, and system behavior.",
+                  onClick: () => setPage("settings"),
+                },
+                {
+                  icon: "fa-user",
+                  title: "Profile",
+                  text: "View your account details and manage your login sessions.",
+                  onClick: () => alert("Profile page coming soon!"),
+                },
+              ].map((card, i) => (
+                <div
+                  key={i}
+                  onClick={card.onClick}
+                  style={{
+                    background: "#fff",
+                    borderRadius: "12px",
+                    padding: "24px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    cursor: "pointer",
+                    transition: "transform 0.2s, box-shadow 0.2s",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = "translateY(-5px)";
+                    e.currentTarget.style.boxShadow = "0 6px 15px rgba(0,0,0,0.15)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = "none";
+                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                  }}
+                >
+                  <i
+                    className={`fa ${card.icon}`}
+                    style={{
+                      fontSize: "2rem",
+                      color: "#5563DE",
+                      marginBottom: "10px",
+                    }}
+                  ></i>
+                  <h3 style={{ marginBottom: "8px", color: "#2b2d42" }}>{card.title}</h3>
+                  <p style={{ color: "#555", fontSize: "0.95rem" }}>{card.text}</p>
+                </div>
+              ))}
+            </section>
+          </main>
+
+          </_Page>
+        </>
+      );
+
+      const _Reports = () => (
+        <>
+          <_Page PageName="Reports" Header={Headers} >
+          <_Tabs />
+          <_Table />
+          </_Page>
+        </>
+      )
+
+      const _Settings = () => (
+        <>
+          <_Page PageName="Settings" Header={Headers} >
+
+          <main
+            style={{
+              minHeight: "calc(100vh - 160px)",
+              background: "#f8f9fa",
+              padding: "40px 20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                width: "100%",
+                maxWidth: "800px",
+                padding: "30px",
+              }}
+            >
+              <h2 style={{ marginBottom: "24px", color: "#2b2d42" }}>Settings</h2>
+
+              {/* Add Sheet Section */}
+              <section
+                style={{
+                  marginBottom: "32px",
+                  borderBottom: "1px solid #eee",
+                  paddingBottom: "24px",
+                }}
+              >
+                <div className="flex-r" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <h3 style={{ margin: 0 }}>Manage Sheets</h3>
+                  {loggedInUser.username === "admin" && (
+                    <button
+                      style={{
+                        background: "#5563DE",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "8px",
+                        padding: "8px 16px",
+                        cursor: "pointer",
+                        fontWeight: "500",
+                        transition: "background 0.3s",
+                      }}
+                      onMouseOver={(e) => (e.target.style.background = "#3f4ec9")}
+                      onMouseOut={(e) => (e.target.style.background = "#5563DE")}
+                      onClick={() => alert("Add sheet clicked")}
+                    >
+                      + Add Sheet
+                    </button>
+                  )}
+                </div>
+                <p style={{ marginTop: "8px", color: "#555", fontSize: "0.9rem" }}>
+                  Create or link new sheets to your app for quick access.
+                </p>
+              </section>
+
+              {/* Radio Options */}
+              <section
+                style={{
+                  marginBottom: "32px",
+                  borderBottom: "1px solid #eee",
+                  paddingBottom: "24px",
+                }}
+              >
+                <h3 style={{ marginBottom: "10px" }}>Interface Options</h3>
+                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+                  {["Light Mode", "Dark Mode", "Auto"].map((option, i) => (
+                    <label key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <input type="radio" name="theme" value={option} />
+                      {option}
+                    </label>
+                  ))}
+                </div>
+              </section>
+
+              {/* Toggle Options */}
+              <section>
+                <h3 style={{ marginBottom: "10px" }}>Notifications</h3>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input type="checkbox" />
+                  Enable Email Alerts
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
+                  <input type="checkbox" />
+                  Enable System Warnings
+                </label>
+              </section>
+            </div>
+          </main>
+
+          </_Page >
+        </>
+      );
+
+      const pages = {
+        login: <_Login />,
+        home: <_Home />,
+        reports: <_Reports />,
+        settings: <_Settings />
+      };
+
+      return (
+      <>{pages[page] || <div>404 Page Not Found</div>}</>
+    );
+  }
+    
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
